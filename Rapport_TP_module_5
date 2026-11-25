@@ -1,0 +1,161 @@
+N.B: Dans ce rapport de TP; si après la commande (celle qui commence par"❯") et qu'après une autre commande passe de suite sans resultat, cela signifie que a commande a été executé avec succès sans sortie
+
+
+
+Commande + Resultat exercice 0
+
+
+
+
+❯ aws configure set --profile tp5 region us-east-1
+❯ aws configure set --profile tp5 aws_access_key_id '...'
+❯ aws configure set --profile tp5 aws_secret_access_key '...'
+❯ aws --profile tp5 configure list
+      Name                    Value             Type    Location
+      ----                    -----             ----    --------
+   profile                      tp5           manual    --profile
+access_key     ****************RTOK shared-credentials-file
+secret_key     ****************2AEY shared-credentials-file
+    region                us-east-1      config-file    ~/.aws/config
+
+❯ aws --profile tp5 sts get-caller-identity
+{
+    "UserId": "AIDAW6VJH4H4Z6SUEXV3Q",
+    "Account": "478170046969",
+    "Arn": "arn:aws:iam::478170046969:user/b1"
+}
+
+
+
+Commande + Resultat exercice 1
+a
+❯ aws --profile tp5 s3 mb s3://boky-ird-b1
+make_bucket: boky-ird-b1
+❯ mkdir -p modeles
+❯ head -c 300000 /dev/urandom > modeles/model.safetensors
+❯ echo '{"dim": 384}' > modeles/config.json
+❯ aws --profile tp5 s3 cp "/home/Ambints/Documents/resumes.parquet" \
+  s3://boky-ird-b1/datasets/resumes.parquet
+upload: Documents/resumes.parquet to s3://boky-ird-b1/datasets/resumes.parquet
+❯ aws --profile tp5 s3 sync modeles/ s3://boky-ird-b1/modeles/
+upload: modeles/config.json to s3://boky-ird-b1/modeles/config.json
+upload: modeles/model.safetensors to s3://boky-ird-b1/modeles/model.safetensors
+
+
+
+b
+
+❯ aws --profile tp5 s3 ls s3://boky-ird-b1/
+                           PRE datasets/
+                           PRE modeles/
+❯ aws --profile tp5 s3 ls s3://boky-ird-b1 --recursive --human-readable --summarize
+2026-11-02 21:54:32   92.3 KiB datasets/resumes.parquet
+2026-10-22 18:04:47   33 Bytes datasets/try.log
+2026-11-02 21:54:53   13 Bytes modeles/config.json
+2026-11-02 21:54:57  293.0 KiB modeles/model.safetensors
+
+Total Objects: 4
+   Total Size: 385.3 KiB
+
+
+
+c
+❯ aws --profile tp5 s3 cp "/home/Ambints/Documents/resumes.parquet" \
+  s3://boky-ird-b1/datasets/resumes.parquet
+upload: Documents/resumes.parquet to s3://boky-ird-b1/datasets/resumes.parquet
+❯ aws --profile tp5 s3 sync modeles/ s3://boky-ird-b1/modeles/
+
+
+d
+❯ aws --profile tp5 s3 cp s3://boky-ird-b1/datasets/resumes.parquet \
+  s3://boky-ird-b1/archives/resumes-v1.parquet
+copy: s3://boky-ird-b1/datasets/resumes.parquet to s3://boky-ird-b1/archives/resumes-v1.parquet
+
+
+e
+❯ aws --profile tp5 s3 rm s3://boky-ird-b1/archives/ --recursive --dryrun
+(dryrun) delete: s3://boky-ird-b1/archives/resumes-v1.parquet
+❯ aws --profile tp5 s3 rm s3://boky-ird-b1/archives/ --recursive
+delete: s3://boky-ird-b1/archives/resumes-v1.parquet
+
+❯ aws --profile tp5 s3 rb s3://boky-ird-b1
+remove_bucket failed: s3://boky-ird-b1 An error occurred (BucketNotEmpty) when calling the DeleteBucket operation: The bucket you tried to delete is not empty
+
+f
+❯ aws --profile tp5 s3 mb s3://boky-ird-b2
+make_bucket failed: s3://boky-ird-b2 An error occurred (AccessDenied) when calling the CreateBucket operation: User: arn:aws:iam::478170046969:user/b1 is not authorized to perform: s3:CreateBucket on resource: "arn:aws:s3:::boky-ird-b2" because no identity-based policy allows the s3:CreateBucket action
+
+
+
+Commande + Resultat exercice 2
+
+❯ curl -s -o /dev/null -w "%{http_code}\n" \
+"https://boky-ird-b1.s3.us-east-1.amazonaws.com/datasets/resumes.parquet"
+403
+
+❯ aws --profile tp5 s3 presign s3://boky-ird-b1/datasets/resumes.parquet --expires-in 3600
+https://boky-ird-b1.s3.us-east-1.amazonaws.com/datasets/resumes.parquet?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAW6VJH4H4Q2OWRTOK%2F20261102%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20261102T190441Z&X-Amz-Expires=3600&X-Amz-SignedHeaders=host&X-Amz-Signature=cf62c797d2d4029a5989203e2b2f3d161c52c3f63b7ceb536c984dcb4692036a
+
+❯ curl -s -o /dev/null -w "%{http_code}\n" "https://boky-ird-b1.s3.us-east-1.amazonaws.com/datasets/resumes.parquet\?X-Amz-Algorithm\=AWS4-HMAC-SHA256\&X-Amz-Credential\=AKIAW6VJH4H4Q2OWRTOK%2F20261102%2Fus-east-1%2Fs3%2Faws4_request\&X-Amz-Date\=20261102T190441Z\&X-Amz-Expires\=3600\&X-Amz-SignedHeaders\=host\&X-Amz-Signature\=cf62c797d2d4029a5989203e2b2f3d161c52c3f63b7ceb536c984dcb4692036a
+"
+000
+
+❯ URL=$(aws --profile tp5 s3 presign \
+  s3://boky-ird-b1/datasets/resumes.parquet --expires-in 10)
+
+curl -s -o /dev/null -w "tout de suite : %{http_code}\n" "$URL"
+sleep 15
+curl -s -o /dev/null -w "après 15 s   : %{http_code}\n" "$URL"
+tout de suite : 200
+après 15 s   : 403
+
+
+Voici ce que fait chaque partie :
+- aws ... presign ... --expires-in 10 crée un lien valable 10 secondes.
+- URL=$(...) garde ce lien dans une variable du terminal, au lieu de l’afficher.
+- Le premier curl le demande immédiatement ; note le code obtenu.
+- sleep 15 attend 15 secondes.
+- Le deuxième curl redemande le même lien après son expiration.
+- -o /dev/null évite d’afficher ou de télécharger le contenu du fichier ; -w affiche le code HTTP.
+
+
+
+Commande + Resultat exercice 3
+
+Question réponse
+
+
+Commande + Resultat exercice 4
+
+❯ python fabrique_livres.py
+
+❯ ls -lh livres.*
+-rwxrwxrwx 1 Ambints Ambints 63M  2 nov.  22:19 livres.csv
+-rwxrwxrwx 1 Ambints Ambints 19M  2 nov.  22:19 livres.csv.gz
+-rwxrwxrwx 1 Ambints Ambints 20M  2 nov.  22:19 livres.parquet
+
+b
+❯ python mesure.py
+CSV, tout                   0.03 s   (100000, 7)
+CSV compressé, tout         0.16 s   (100000, 7)
+Parquet, tout               0.09 s   (100000, 7)
+CSV, deux colonnes          0.05 s   (100000, 2)
+Parquet, deux colonnes      0.01 s   (100000, 2)
+
+c
+execution du code sous le nom du fichier compare_types.py
+❯ python compare_types.py
+écrit   : {'paru_le': 'datetime64[us]', 'disponible': 'bool', 'note': 'Int64'}
+parquet : {'paru_le': 'datetime64[us]', 'disponible': 'bool', 'note': 'Int64'}
+csv     : {'paru_le': 'str', 'disponible': 'bool', 'note': 'float64'}
+
+
+Commande + Resultat exercice 5
+
+❯ AWS_PROFILE=tp5 python lire.py
+(200, 4) ['id', 'titre', 'auteur', 'résumé']
+(200, 2)
+                                   titre              auteur
+Harry Potter and the Philosopher's Stone       J. K. Rowling
+                       A Game of Thrones George R. R. Martin
+                              Shatter Me        Tahereh Mafi
